@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国空间站实时追踪 | CSS/ISS卫星轨道可视化</title>
+    <meta name="keywords" content="空间站, CSS, ISS, 卫星, 轨道, 实时追踪, Three.js, 可视化, 中国空间站, 国际空间站">
+    <meta name="description" content="空间站实时追踪，CSS与ISS卫星轨道三维可视化，支持标签显示、轨道切换、视角锁定等功能。">
+    <meta property="og:title" content="空间站实时追踪 | CSS/ISS卫星轨道可视化">
+    <meta property="og:description" content="空间站实时追踪，CSS与ISS卫星轨道三维可视化，支持标签显示、轨道切换、视角锁定等功能。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="">
+    <meta property="og:image" content="">
+    <meta name="author" content="lihuan">
+    <link rel="canonical" href="">
+    <script type="application/ld+json">
+    {
+      "@context": "https://css.quickso.cn",
+      "@type": "WebSite",
+      "name": "空间站实时追踪",
+      "description": "空间站实时追踪，CSS与ISS卫星轨道三维可视化，支持标签显示、轨道切换、视角锁定等功能。",
+      "url": ""
+    }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        #infoPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            z-index: 100;
+        }
+
+        #infoPanel h2 {
+            margin-bottom: 10px;
+            color: #4fc3f7;
+        }
+
+        .station-info {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .station-info h3 {
+            color: #fff;
+            margin-bottom: 5px;
+        }
+
+        .station-info p {
+            margin: 3px 0;
+            font-size: 14px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+
+        button {
+            background: #1a237e;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin-right: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #283593;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #4fc3f7;
+        }
+
+        .orbit {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .label {
+            color: white;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container"></div>
+
+    <div id="infoPanel">
+        <div id="currentTime" style="font-size:15px;color:#ffd700;margin-bottom:8px;"></div>
+        <h2>空间站追踪</h2>
+        <div class="station-info" id="issInfo">
+            <h3>国际空间站 (ISS)</h3>
+            <p>经度: <span id="issLon">-</span></p>
+            <p>纬度: <span id="issLat">-</span></p>
+            <p>高度: <span id="issAlt">-</span> 公里</p>
+            <p>速度: <span id="issVel">-</span> km/s</p>
+        </div>
+        <div class="station-info" id="cssInfo">
+            <h3>中国空间站 (CSS)</h3>
+            <p>经度: <span id="cssLon">-</span></p>
+            <p>纬度: <span id="cssLat">-</span></p>
+            <p>高度: <span id="cssAlt">-</span> 公里</p>
+            <p>速度: <span id="cssVel">-</span> km/s</p>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="toggleOrbits">显示/隐藏轨道</button>
+        <button id="toggleLabels">显示/隐藏标签</button>
+        <button id="resetView">重置视角</button>
+        <button id="lockView">锁定视角</button>
+        <button id="showCssImages">查看中国空间站位置图</button>
+    </div>
+
+    <!-- 弹窗结构 -->
+    <div id="cssImagesModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:999;justify-content:center;align-items:center;">
+      <div style="background:#222;padding:24px 18px 18px 18px;border-radius:12px;max-width:700px;position:relative;text-align:center;">
+        <button id="closeCssImages" style="position:absolute;top:8px;right:12px;background:#4fc3f7;color:#222;border:none;font-size:18px;padding:2px 10px;border-radius:6px;cursor:pointer;">关闭</button>
+        <h3 style="color:#ffd700;margin-bottom:12px;">中国空间站轨道与位置图</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center;">
+          <img src="https://www.heavens-above.com/orbitdisplay.aspx?icon=default&width=600&height=300&mode=M&satid=48274" alt="CSS轨道图" style="max-width:100%;border-radius:8px;box-shadow:0 2px 8px #000;">
+          <img src="https://www.heavens-above.com/orbitdisplay.aspx?icon=default&width=250&height=250&mode=A&satid=48274" alt="CSS极区图" style="max-width:100%;border-radius:8px;box-shadow:0 2px 8px #000;">
+          <img src="https://www.heavens-above.com/orbitdisplay.aspx?icon=default&width=250&height=250&mode=N&satid=48274" alt="CSS赤道区图" style="max-width:100%;border-radius:8px;box-shadow:0 2px 8px #000;">
+        </div>
+      </div>
+    </div>
+
+    <div class="loading" id="loading">加载中...</div>
+
+    <!-- 引入Three.js和卫星位置计算库 -->
+    <script src="https://gcore.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://gcore.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://gcore.jsdelivr.net/npm/satellite.js/dist/satellite.min.js"></script>
+    <script src="https://gcore.jsdelivr.net/npm/three@0.132.2/examples/js/renderers/CSS2DRenderer.js"></script>
+
+    <script>
+        // 主要变量
+        let scene, camera, renderer, controls;
+        let earth, iss, css;
+        let issOrbit, cssOrbit;
+        let issData, cssData;
+        let showOrbits = true;
+        // 标签显示/隐藏
+        let showLabels = true;
+        // 视角锁定
+        let viewLocked = false;
+
+        function toggleLockView() {
+            viewLocked = !viewLocked;
+            controls.enabled = !viewLocked;
+            const btn = document.getElementById('lockView');
+            btn.textContent = viewLocked ? '解锁视角' : '锁定视角';
+        }
+
+        // TLE数据源URL
+        const TLE_ISS_URL = 'https://cors.quickso.cn/https://celestrak.org/NORAD/elements/gp.php?NAME=ISS%20(ZARYA)&FORMAT=tle';
+        const TLE_CSS_URL = 'https://cors.quickso.cn/https://celestrak.org/NORAD/elements/gp.php?NAME=CSS%20(TIANHE)&FORMAT=tle';
+
+        // 初始化
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // 创建CSS2D标签渲染器
+            labelRenderer = new THREE.CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            document.getElementById('container').appendChild(labelRenderer.domElement);
+
+            // 添加轨道控制
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // 添加环境光
+            const ambientLight = new THREE.AmbientLight(0x333333);
+            scene.add(ambientLight);
+
+            // 添加方向光
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 3, 5);
+            scene.add(directionalLight);
+
+            // 创建地球
+            createEarth();
+
+            // 创建空间站模型
+            createSpaceStations();
+
+            // 创建轨道线
+            createOrbits();
+
+            // 加载TLE数据
+            loadTLEData();
+
+            // 添加窗口大小调整事件
+            window.addEventListener('resize', onWindowResize);
+
+            // 添加控制按钮事件
+            document.getElementById('toggleOrbits').addEventListener('click', toggleOrbits);
+            document.getElementById('toggleLabels').addEventListener('click', toggleLabels);
+            document.getElementById('resetView').addEventListener('click', resetView);
+            document.getElementById('lockView').addEventListener('click', toggleLockView);
+            document.getElementById('showCssImages').addEventListener('click', function() {
+                document.getElementById('cssImagesModal').style.display = 'flex';
+            });
+            document.getElementById('closeCssImages').addEventListener('click', function() {
+                document.getElementById('cssImagesModal').style.display = 'none';
+            });
+
+            // 隐藏加载提示
+            document.getElementById('loading').style.display = 'none';
+
+            // 开始动画循环
+            animate();
+        }
+
+        // 创建地球
+        function createEarth() {
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load('https://gcore.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_atmos_2048.jpg');
+            const material = new THREE.MeshPhongMaterial({
+                map: texture,
+                specular: new THREE.Color(0x333333),
+                shininess: 5
+            });
+
+            earth = new THREE.Mesh(geometry, material);
+            scene.add(earth);
+
+            // 添加云层
+            const cloudGeometry = new THREE.SphereGeometry(1.01, 32, 32);
+            const cloudTexture = textureLoader.load('https://gcore.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_clouds_1024.png');
+            const cloudMaterial = new THREE.MeshPhongMaterial({
+                map: cloudTexture,
+                transparent: true,
+                opacity: 0.4
+            });
+
+            const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+            scene.add(clouds);
+        }
+
+        // 创建空间站模型
+        function createSpaceStations() {
+            // 国际空间站Sprite图片模型
+            const issTexture = new THREE.TextureLoader().load('ss.png');
+            const issMaterial = new THREE.SpriteMaterial({ map: issTexture });
+            iss = new THREE.Sprite(issMaterial);
+            iss.scale.set(0.15, 0.08, 1); // 可根据图片比例调整
+            scene.add(iss);
+
+            // 国际空间站🛰名称标签（上方）
+            const issDiv = document.createElement('div');
+            issDiv.className = 'label';
+            issDiv.innerHTML = '🛰 国际空间站 ISS';
+            const issLabel = new THREE.CSS2DObject(issDiv);
+            issLabel.position.set(0, 0.12, 0); // 上方更明显
+            iss.add(issLabel);
+            iss.issLabel = issLabel; // 保存标签对象
+
+            // ...已去除ISS范围圈...
+
+            // 中国空间站Sprite图片模型
+            const cssTexture = new THREE.TextureLoader().load('ss.png');
+            const cssMaterial = new THREE.SpriteMaterial({ map: cssTexture });
+            css = new THREE.Sprite(cssMaterial);
+            css.scale.set(0.15, 0.08, 1); // 可根据图片比例调整
+            scene.add(css);
+
+            // 中国空间站🛰名称标签（上方）
+            const cssDiv = document.createElement('div');
+            cssDiv.className = 'label';
+            cssDiv.innerHTML = '🛰 中国空间站 CSS';
+            const cssLabel = new THREE.CSS2DObject(cssDiv);
+            cssLabel.position.set(0, 0.12, 0); // 上方更明显
+            css.add(cssLabel);
+            css.cssLabel = cssLabel; // 保存标签对象
+
+            // ...已去除CSS范围圈...
+        }
+
+        // 创建轨道线
+        function createOrbits() {
+            // 国际空间站轨道
+            const issOrbitGeometry = new THREE.BufferGeometry();
+            const issOrbitMaterial = new THREE.LineBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.5 });
+            issOrbit = new THREE.Line(issOrbitGeometry, issOrbitMaterial);
+            scene.add(issOrbit);
+
+            // 中国空间站轨道
+            const cssOrbitGeometry = new THREE.BufferGeometry();
+            const cssOrbitMaterial = new THREE.LineBasicMaterial({ color: 0xff9800, transparent: true, opacity: 0.5 });
+            cssOrbit = new THREE.Line(cssOrbitGeometry, cssOrbitMaterial);
+            scene.add(cssOrbit);
+        }
+
+        // 加载TLE数据
+        function loadTLEData() {
+            // 加载国际空间站TLE数据
+            fetch(TLE_ISS_URL)
+                .then(response => response.text())
+                .then(data => {
+                    const lines = data.trim().split('\n');
+                    if (lines.length >= 3) {
+                        issData = {
+                            name: lines[0].trim(),
+                            tleLine1: lines[1],
+                            tleLine2: lines[2]
+                        };
+                        updateISS();
+                    }
+                })
+                .catch(error => console.error('加载ISS数据失败:', error));
+
+            // 加载中国空间站TLE数据
+            fetch(TLE_CSS_URL)
+                .then(response => response.text())
+                .then(data => {
+                    const lines = data.trim().split('\n');
+                    if (lines.length >= 3) {
+                        cssData = {
+                            name: lines[0].trim(),
+                            tleLine1: lines[1],
+                            tleLine2: lines[2]
+                        };
+                        updateCSS();
+                    }
+                })
+                .catch(error => console.error('加载CSS数据失败:', error));
+        }
+
+        // 更新国际空间站位置
+        function updateISS() {
+            if (!issData) return;
+
+            const satrec = satellite.twoline2satrec(issData.tleLine1, issData.tleLine2);
+            const positionAndVelocity = satellite.propagate(satrec, new Date());
+
+            if (positionAndVelocity.position) {
+                const positionEci = positionAndVelocity.position;
+                const gmst = satellite.gstime(new Date());
+                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+
+                // 转换为Three.js坐标
+                const longitude = positionGd.longitude;
+                const latitude = positionGd.latitude;
+                const height = positionGd.height / 6371; // 地球半径归一化
+
+                const radius = 1 + height;
+                const x = radius * Math.cos(latitude) * Math.cos(-longitude);
+                const y = radius * Math.sin(latitude);
+                const z = radius * Math.cos(latitude) * Math.sin(-longitude);
+
+                // 更新ISS位置
+                iss.position.set(x, y, z);
+                // ...已去除ISS范围圈同步...
+
+                // 更新信息面板
+                document.getElementById('issLon').textContent = (longitude * 180 / Math.PI).toFixed(2) + '°';
+                document.getElementById('issLat').textContent = (latitude * 180 / Math.PI).toFixed(2) + '°';
+                document.getElementById('issAlt').textContent = (positionGd.height).toFixed(2);
+
+                if (positionAndVelocity.velocity) {
+                    const velocity = Math.sqrt(
+                        positionAndVelocity.velocity.x * positionAndVelocity.velocity.x +
+                        positionAndVelocity.velocity.y * positionAndVelocity.velocity.y +
+                        positionAndVelocity.velocity.z * positionAndVelocity.velocity.z
+                    );
+                    document.getElementById('issVel').textContent = (velocity).toFixed(2);
+                }
+
+                // 更新轨道线
+                if (showOrbits) {
+                    updateOrbitLine(satrec, issOrbit, 0x4fc3f7);
+                }
+            }
+        }
+
+        // 更新中国空间站位置
+        function updateCSS() {
+            if (!cssData) return;
+
+            const satrec = satellite.twoline2satrec(cssData.tleLine1, cssData.tleLine2);
+            const positionAndVelocity = satellite.propagate(satrec, new Date());
+
+            if (positionAndVelocity.position) {
+                const positionEci = positionAndVelocity.position;
+                const gmst = satellite.gstime(new Date());
+                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+
+                // 转换为Three.js坐标
+                const longitude = positionGd.longitude;
+                const latitude = positionGd.latitude;
+                const height = positionGd.height / 6371; // 地球半径归一化
+
+                const radius = 1 + height;
+                const x = radius * Math.cos(latitude) * Math.cos(-longitude);
+                const y = radius * Math.sin(latitude);
+                const z = radius * Math.cos(latitude) * Math.sin(-longitude);
+
+                // 更新CSS位置
+                css.position.set(x, y, z);
+                // ...已去除CSS范围圈同步...
+
+                // 更新信息面板
+                document.getElementById('cssLon').textContent = (longitude * 180 / Math.PI).toFixed(2) + '°';
+                document.getElementById('cssLat').textContent = (latitude * 180 / Math.PI).toFixed(2) + '°';
+                document.getElementById('cssAlt').textContent = (positionGd.height).toFixed(2);
+
+                if (positionAndVelocity.velocity) {
+                    const velocity = Math.sqrt(
+                        positionAndVelocity.velocity.x * positionAndVelocity.velocity.x +
+                        positionAndVelocity.velocity.y * positionAndVelocity.velocity.y +
+                        positionAndVelocity.velocity.z * positionAndVelocity.velocity.z
+                    );
+                    document.getElementById('cssVel').textContent = (velocity).toFixed(2);
+                }
+
+                // 更新轨道线
+                if (showOrbits) {
+                    updateOrbitLine(satrec, cssOrbit, 0xff9800);
+                }
+            }
+        }
+
+        // 更新轨道线
+        function updateOrbitLine(satrec, orbitLine, color) {
+            const points = [];
+            const gmst = satellite.gstime(new Date());
+
+            // 计算未来一段时间的轨道点
+            for (let i = 0; i <= 100; i++) {
+                const time = new Date(Date.now() + i * 60000); // 每分钟一个点
+                const positionAndVelocity = satellite.propagate(satrec, time);
+
+                if (positionAndVelocity.position) {
+                    const positionEci = positionAndVelocity.position;
+                    const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+
+                    const longitude = positionGd.longitude;
+                    const latitude = positionGd.latitude;
+                    const height = positionGd.height / 6371;
+
+                    const radius = 1 + height;
+                    const x = radius * Math.cos(latitude) * Math.cos(-longitude);
+                    const y = radius * Math.sin(latitude);
+                    const z = radius * Math.cos(latitude) * Math.sin(-longitude);
+
+                    points.push(new THREE.Vector3(x, y, z));
+                }
+            }
+
+            orbitLine.geometry.setFromPoints(points);
+            orbitLine.material.color.setHex(color);
+        }
+
+        // 切换轨道显示
+        function toggleOrbits() {
+            showOrbits = !showOrbits;
+            issOrbit.visible = showOrbits;
+            cssOrbit.visible = showOrbits;
+        }
+
+        // 切换标签显示
+        function toggleLabels() {
+            showLabels = !showLabels;
+            if (iss && iss.issLabel) iss.issLabel.visible = showLabels;
+            if (css && css.cssLabel) css.cssLabel.visible = showLabels;
+        }
+
+        // 重置视角
+        function resetView() {
+            controls.reset();
+        }
+
+        // 锁定视角
+        function lockView() {
+            viewLocked = !viewLocked;
+            controls.enableRotate = !viewLocked;
+            if (viewLocked) {
+                document.getElementById('lockView').textContent = '解锁视角';
+            } else {
+                document.getElementById('lockView').textContent = '锁定视角';
+            }
+        }
+
+        // 查看中国空间站位置图
+        function showCssImages() {
+            document.getElementById('cssImagesModal').style.display = 'flex';
+        }
+
+        // 关闭中国空间站位置图弹窗
+        function closeCssImages() {
+            document.getElementById('cssImagesModal').style.display = 'none';
+        }
+
+        // 窗口大小调整
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (labelRenderer) labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 更新空间站位置
+            updateISS();
+            updateCSS();
+
+            // 地球不再自转
+            // earth.rotation.y += 0.0005;
+
+            // 更新轨道控制
+            controls.update();
+
+            // 渲染场景
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        // 更新时间显示
+        function updateTime() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const MM = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('currentTime').textContent = `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 初始化应用
+        init();
+    </script>
+</body>
+
+</html>
