@@ -24,12 +24,12 @@
 CCS/
 ├── index.html      # 主页面
 ├── README.md       # 项目说明
-└── ss.png          # 空间站图标（如有）
+└── ss.png          # 空间站图标
 ```
 
 ## 相关链接
 - CSS轨道图等图片来源：[Heavens Above](https://www.heavens-above.com/)
-- 卫星数据来自 [CeleStrak]https://celestrak.org
+- 卫星数据来自 [CeleStrak](https://celestrak.org)
 
 ## 作者
 muzihuaner
