@@ -24,6 +24,71 @@
     }
     </script>
     <style>
+                /* 菜单按钮优化 */
+                #menuBtn {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: linear-gradient(90deg,#1a237e 60%,#283593 100%);
+                    color: #fff;
+                    border: none;
+                    padding: 10px 22px;
+                    border-radius: 9px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    font-weight: 600;
+                    box-shadow: 0 2px 10px #222;
+                    transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
+                    position: relative;
+                }
+                #menuBtn:hover {
+                    background: linear-gradient(90deg,#283593 60%,#1a237e 100%);
+                    box-shadow: 0 4px 16px #111;
+                    transform: scale(1.04);
+                }
+                #menuBtn .menu-icon {
+                    font-size: 20px;
+                    vertical-align: middle;
+                }
+                /* 菜单面板优化 */
+                #menuPanel {
+                    min-width: 180px;
+                    background: rgba(30,33,126,0.98);
+                    border-radius: 14px;
+                    box-shadow: 0 6px 24px #000a;
+                    padding: 22px 28px 18px 28px;
+                    z-index: 200;
+                    animation: menuFadeIn 0.25s;
+                }
+                @keyframes menuFadeIn {
+                    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+                    to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .menu-action {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: linear-gradient(90deg, #283593 60%, #1a237e 100%);
+                    color: #fff;
+                    border: none;
+                    padding: 8px 0 8px 10px;
+                    border-radius: 7px;
+                    cursor: pointer;
+                    font-size: 15px;
+                    font-weight: 500;
+                    margin-bottom: 4px;
+                    box-shadow: 0 1px 4px #222;
+                    transition: background 0.3s, transform 0.2s;
+                    position: relative;
+                }
+                .menu-action:hover {
+                    background: linear-gradient(90deg, #1a237e 60%, #283593 100%);
+                    transform: translateY(-2px) scale(1.04);
+                }
+                .menu-action .action-icon {
+                    font-size: 17px;
+                    opacity: 0.85;
+                }
         * {
             margin: 0;
             padding: 0;
@@ -82,27 +147,37 @@
             z-index: 100;
         }
 
-        button {
-            background: #1a237e;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            margin-right: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: #283593;
-        }
-
-        .loading {
+        #controls {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 18px;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: rgba(0,0,0,0.5);
+            padding: 12px 18px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px #000;
+        }
+
+        #controls button {
+            background: linear-gradient(90deg, #1a237e 60%, #283593 100%);
+            color: #fff;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            box-shadow: 0 1px 4px #222;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+        #controls button:hover {
+            background: linear-gradient(90deg, #283593 60%, #1a237e 100%);
+            transform: translateY(-2px) scale(1.04);
+        }
             color: #4fc3f7;
         }
 
@@ -141,11 +216,19 @@
     </div>
 
     <div id="controls">
-        <button id="toggleOrbits">显示/隐藏轨道</button>
-        <button id="toggleLabels">显示/隐藏标签</button>
-        <button id="resetView">重置视角</button>
-        <button id="lockView">锁定视角</button>
-        <button id="showCssImages">查看中国空间站位置图</button>
+                <div style="position:relative;">
+                    <button id="menuBtn"><span class="menu-icon">☰</span>菜单</button>
+                    <div id="menuPanel" style="display:none;position:absolute;bottom:48px;left:0;background:rgba(30,33,126,0.98);border-radius:10px;box-shadow:0 2px 8px #000;padding:18px 24px;z-index:200;">
+                        <form id="menuForm" style="display:flex;flex-direction:column;gap:12px;">
+                            <button type="button" class="menu-action" data-action="toggleOrbits"><span class="action-icon">🛰️</span>显示/隐藏轨道</button>
+                            <button type="button" class="menu-action" data-action="toggleLabels"><span class="action-icon">🏷️</span>显示/隐藏标签</button>
+                            <button type="button" class="menu-action" data-action="resetView"><span class="action-icon">🔄</span>重置视角</button>
+                            <button type="button" class="menu-action" data-action="lockView"><span class="action-icon">🔒</span>锁定/解锁视角</button>
+                            <button type="button" class="menu-action" data-action="toggleInfoPanel"><span class="action-icon">📋</span>显示/隐藏信息面板</button>
+                        </form>
+                    </div>
+                </div>
+                <button id="showCssImages">查看中国空间站位置图</button>
     </div>
 
     <!-- 弹窗结构 -->
@@ -176,10 +259,10 @@
         let issOrbit, cssOrbit;
         let issData, cssData;
         let showOrbits = true;
-        // 标签显示/隐藏
         let showLabels = true;
-        // 视角锁定
         let viewLocked = false;
+        // 菜单相关
+        let menuPanelVisible = false;
 
         function toggleLockView() {
             viewLocked = !viewLocked;
@@ -226,7 +309,7 @@
 
             // 添加方向光
             const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(5, 3, 5);
+            // directionalLight.position.set(5, 3, 5);
             scene.add(directionalLight);
 
             // 创建地球
@@ -245,16 +328,52 @@
             window.addEventListener('resize', onWindowResize);
 
             // 添加控制按钮事件
-            document.getElementById('toggleOrbits').addEventListener('click', toggleOrbits);
-            document.getElementById('toggleLabels').addEventListener('click', toggleLabels);
-            document.getElementById('resetView').addEventListener('click', resetView);
-            document.getElementById('lockView').addEventListener('click', toggleLockView);
+            // 菜单按钮事件
+            const menuBtn = document.getElementById('menuBtn');
+            const menuPanel = document.getElementById('menuPanel');
+            menuBtn.addEventListener('click', function(e) {
+                menuPanelVisible = !menuPanelVisible;
+                menuPanel.style.display = menuPanelVisible ? 'block' : 'none';
+            });
+            // 单选框事件
+            document.getElementById('menuForm').addEventListener('click', function(e) {
+                if (e.target.classList.contains('menu-action')) {
+                    const action = e.target.getAttribute('data-action');
+                    if (action === 'toggleOrbits') toggleOrbits();
+                    if (action === 'toggleLabels') toggleLabels();
+                    if (action === 'resetView') resetView();
+                    if (action === 'lockView') toggleLockView();
+                    if (action === 'toggleInfoPanel') toggleInfoPanel();
+                    // 自动关闭菜单
+                    menuPanelVisible = false;
+                    menuPanel.style.display = 'none';
+                }
+            });
+            // 点击空白处关闭菜单
+            document.addEventListener('click', function(e) {
+                if (!menuPanel.contains(e.target) && e.target !== menuBtn) {
+                    menuPanelVisible = false;
+                    menuPanel.style.display = 'none';
+                }
+            });
+            // 保留原有“查看中国空间站位置图”按钮
             document.getElementById('showCssImages').addEventListener('click', function() {
                 document.getElementById('cssImagesModal').style.display = 'flex';
             });
             document.getElementById('closeCssImages').addEventListener('click', function() {
                 document.getElementById('cssImagesModal').style.display = 'none';
             });
+        // 隐藏/显示信息面板
+        let infoPanelVisible = true;
+        function toggleInfoPanel() {
+            infoPanelVisible = !infoPanelVisible;
+            const infoPanel = document.getElementById('infoPanel');
+            if (infoPanelVisible) {
+                infoPanel.style.display = '';
+            } else {
+                infoPanel.style.display = 'none';
+            }
+        }
 
             // 隐藏加载提示
             document.getElementById('loading').style.display = 'none';
@@ -590,4 +709,28 @@
     </script>
 </body>
 
+        <!-- 右下角数据来源和作者信息 -->
+        <div id="footerInfo">
+            数据来源：Celestrak & Heavens-Above | 
+            <a href="https://github.com/muzihuaner/CSS" target="_blank" style="color:#4fc3f7;text-decoration:underline;margin-left:8px;">GitHub</a>
+        </div>
+        <style>
+            #footerInfo {
+                position: fixed;
+                right: 18px;
+                bottom: 12px;
+                background: rgba(0,0,0,0.65);
+                color: #bbb;
+                font-size: 14px;
+                border-radius: 8px;
+                padding: 7px 16px 7px 12px;
+                z-index: 9999;
+                box-shadow: 0 2px 8px #000a;
+                display: flex;
+                align-items: center;
+            }
+            #footerInfo a:hover {
+                color: #ffd700;
+            }
+        </style>
 </html>
